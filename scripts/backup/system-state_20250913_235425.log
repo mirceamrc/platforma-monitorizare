@@ -1,0 +1,23 @@
+==================== STARE SISTEM ====================
+Data si ora: 2025-09-13 23:52:21
+Host: ubuntu2004
+Sistem de operare: Ubuntu 22.04.5 LTS (Jammy Jellyfish)
+Timp de functionare: up 3 hours, 59 minutes
+CPU utilizat: 3.2%
+Memorie utilizata: 2.0Gi / Total: 3.8Gi (52.63%)
+Procese active: 242
+Utilizare disc: 20G folosit din 24G (86%)
+Top 5 procese dupa CPU:
+      PID COMMAND         %CPU
+     3521 gnome-shell      7.6
+     4361 code             6.4
+     4333 code             1.5
+    12391 code             1.1
+     4290 code             0.9
+Top 5 procese dupa memorie:
+      PID COMMAND         %MEM
+     3521 gnome-shell     14.7
+     4361 code            10.0
+    12391 code             9.9
+     4390 code             5.7
+     4290 code             5.4
