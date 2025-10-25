@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  monitoring:
+    build:
+      context: ..
+      dockerfile: docker/monitoring/Dockerfile
+    container_name: monitoring
+    environment:
+      - INTERVAL=5
+    volumes:
+      - ./shared:/data
+    networks:
+      - monitoring_net
+
+  backup:
+    build:
+      context: ..
+      dockerfile: docker/backup/Dockerfile
+    container_name: backup
+    environment:
+      - BACKUP_INTERVAL=5
+      - BACKUP_DIR=/data/backup
+    volumes:
+      - ./shared:/data
+    networks:
+      - monitoring_net
+
+networks:
+  monitoring_net:
+    driver: bridge

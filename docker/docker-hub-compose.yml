@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  monitoring:
+    image: molox/docker-monitoring:latest
+    container_name: monitoring
+    environment:
+      - INTERVAL=5
+    volumes:
+      - ./shared:/data
+    networks:
+      - monitoring_net
+
+  backup:
+    image: molox/docker-backup:latest
+    container_name: backup
+    environment:
+      - BACKUP_INTERVAL=5
+      - BACKUP_DIR=/data/backup
+    volumes:
+      - ./shared:/data
+    networks:
+      - monitoring_net
+
+networks:
+  monitoring_net:
+    driver: bridge

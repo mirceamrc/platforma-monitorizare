@@ -1,0 +1,21 @@
+==================== STARE SISTEM ====================
+Data si ora: 2025-10-06 19:13:24
+Host: 51b721388342
+Sistem de operare: Debian GNU/Linux 13 (trixie)
+Timp de functionare: up 4 hours, 22 minutes
+CPU utilizat: 22.3%
+Memorie utilizata: 3.0Gi / Total: 4.9Gi (61.22%)
+Procese active: 5
+Utilizare disc: 23G folosit din 49G (49%)
+Top 5 procese dupa CPU:
+      PID COMMAND         %CPU
+        1 monitoring.sh    0.9
+       69 ps               0.0
+       70 head             0.0
+       71 awk              0.0
+Top 5 procese dupa memorie:
+      PID COMMAND         %MEM
+       72 ps               0.0
+        1 monitoring.sh    0.0
+       74 awk              0.0
+       73 head             0.0

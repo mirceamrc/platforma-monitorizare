@@ -1,7 +1,7 @@
 #!/bin/bash
 
-INTERVAL=${INTERVAL:-5}
-LOG_FILE="system-state.log"
+INTERVAL=${INTERVAL:-30}
+LOG_FILE="/data/system-state.log"
 
 while true; do
     {

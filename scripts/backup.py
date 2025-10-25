@@ -5,13 +5,15 @@ import shutil
 import hashlib
 from datetime import datetime
 
-source_file = "system-state.log"
+source_file = "/data/system-state.log"
 
-backup_interval = int(os.getenv("BACKUP_INTERVAL", "5"))
+backup_interval = int(os.getenv("BACKUP_INTERVAL", "30"))
 
-backup_dir = os.getenv("BACKUP_DIR", "backup")
+backup_dir = os.getenv("BACKUP_DIR", "./backup")
 
-error_log_file = "error.log"
+error_log_file = "/data/error.log"
+
+os.makedirs(backup_dir, exist_ok=True)
 
 def log_error(message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

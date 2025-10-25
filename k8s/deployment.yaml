@@ -1,1 +1,72 @@
-# Puneti aici tot ce aveti nevoie pentru deployment (Namespace, pods, volumes, etc)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-app
+  namespace: monitoring
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: monitoring-app
+  template:
+    metadata:
+      labels:
+        app: monitoring-app
+    spec:
+      containers:
+        - name: monitoring
+          image: molox/docker-monitoring:latest
+          env:
+            - name: INTERVAL
+              value: "30"
+          volumeMounts:
+            - name: shared-logs
+              mountPath: /data
+        - name: backup
+          image: molox/docker-backup:latest
+          env:
+            - name: BACKUP_INTERVAL
+              value: "30"
+            - name: BACKUP_DIR
+              value: /data/backup
+          volumeMounts:
+            - name: shared-logs
+              mountPath: /data
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: shared-logs
+              mountPath: /usr/share/nginx/html/logs
+            - name: nginx-index
+              mountPath: /usr/share/nginx/html/logs/index.html
+              subPath: index.html
+      volumes:
+        - name: shared-logs
+          emptyDir: {}
+        - name: nginx-index
+          configMap:
+            name: nginx-index
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-service
+  namespace: monitoring
+spec:
+  selector:
+    app: monitoring-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30080
+  type: NodePort
