@@ -4,13 +4,51 @@ metadata:
   name: monitoring
 
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-index
+  namespace: monitoring
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="ro">
+    <head>
+      <meta charset="UTF-8">
+      <title>Monitorizare - Loguri Sistem</title>
+      <meta http-equiv="refresh" content="10">
+      <style>
+        body { font-family: monospace; background: #f5f5f5; margin: 20px; }
+        pre { background: white; padding: 10px; border: 1px solid #ccc; overflow: auto; }
+      </style>
+    </head>
+    <body>
+      <h2>Loguri stare sistem</h2>
+      <pre id="logs"></pre>
+      <script>
+        async function loadLogs() {
+          const resp = await fetch('system-state.log');
+          const text = await resp.text();
+          document.getElementById('logs').textContent = text || 'Logul este gol...';
+        }
+        loadLogs();
+        setInterval(loadLogs, 10000);
+      </script>
+    </body>
+    </html>
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: monitoring-app
   namespace: monitoring
+  labels:
+    app: monitoring-app
 spec:
   replicas: 2
+  strategy:
+    type: RollingUpdate
   selector:
     matchLabels:
       app: monitoring-app
@@ -22,17 +60,47 @@ spec:
       containers:
         - name: monitoring
           image: molox/docker-monitoring:latest
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - test -f /data/system-state.log
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "64Mi"
+              cpu: "200m"
           env:
             - name: INTERVAL
-              value: "30"
+              value: "10"
           volumeMounts:
             - name: shared-logs
               mountPath: /data
         - name: backup
           image: molox/docker-backup:latest
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - test -n "$(ls -A /data/backup 2>/dev/null || true)"
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "64Mi"
+              cpu: "200m"
           env:
             - name: BACKUP_INTERVAL
-              value: "30"
+              value: "10"
             - name: BACKUP_DIR
               value: /data/backup
           volumeMounts:
@@ -40,6 +108,27 @@ spec:
               mountPath: /data
         - name: nginx
           image: nginx:alpine
+          livenessProbe:
+            httpGet:
+              path: /logs/
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - test -f /usr/share/nginx/html/logs/index.html
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "64Mi"
+              cpu: "200m"
           ports:
             - containerPort: 80
           volumeMounts:
@@ -69,4 +158,31 @@ spec:
       port: 80
       targetPort: 80
       nodePort: 30080
-  type: NodePort
+  type: LoadBalancer
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: monitoring-hpa
+  namespace: monitoring
+spec:
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - resource:
+      name: cpu
+      target:
+        averageUtilization: 60
+        type: Utilization
+    type: Resource
+  - resource:
+      name: memory
+      target:
+        averageUtilization: 75
+        type: Utilization
+    type: Resource
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: monitoring-app        
