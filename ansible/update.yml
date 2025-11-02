@@ -1,0 +1,9 @@
+---
+- name: Update pe toate masinile
+  hosts: all_servers
+  become: yes
+  tasks:
+    - name: Actualizare lista de pachete
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600

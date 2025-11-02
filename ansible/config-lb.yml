@@ -1,0 +1,101 @@
+---
+- name: Configurare NGINX Load Balancer pentru K3s
+  hosts: lb
+  become: yes
+  tasks:
+    - name: Se verifica NGINX si Certbot daca sunt instalate
+      apt:
+        name:
+          - nginx
+          - python3-certbot-nginx
+        state: present
+        update_cache: yes
+
+    - name: Se dezactiveaza site-ul implicit NGINX
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      ignore_errors: yes
+
+    - name: Adauga blocul stream pentru K3s API in nginx.conf
+      blockinfile:
+        path: /etc/nginx/nginx.conf
+        marker: "# {mark} ANSIBLE K3S STREAM BLOCK"
+        block: |
+          stream {
+              upstream k3s_servers {
+          {% for host in groups['master'] %}
+                  server {{ hostvars[host].ansible_host }}:6443;
+          {% endfor %}
+              }
+
+              server {
+                  listen 6443;
+                  proxy_pass k3s_servers;
+              }
+          }
+      notify: Restart nginx
+
+    - name: Creeaza configul NGINX pentru app monitoring
+      copy:
+        dest: /etc/nginx/conf.d/app.conf
+        content: |
+          upstream monitoring_app {
+          {% for host in groups['worker'] %}
+              server {{ hostvars[host].ansible_host }}:30080;
+          {% endfor %}
+          }
+
+          server {
+              listen 80;
+              server_name itschool.live www.itschool.live;
+
+              location / {
+                  proxy_pass http://monitoring_app;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              }
+          }
+
+    - name: Se verifica daca DNS-ul itschool.live pointeaza spre load balancer
+      shell: dig +short itschool.live | grep -w "{{ ansible_host }}"
+      register: dns_check
+      ignore_errors: yes
+
+    - name: Afiseaza rezultatul DNS
+      debug:
+        msg: >
+          {% if dns_check.rc == 0 %}
+          Domeniul itschool.live pointeaza corect catre {{ ansible_host }}.
+          {% else %}
+          DNS-ul itschool.live nu pointeaza catre {{ ansible_host }} — Certbot va fi sarit.
+          {% endif %}
+
+    - name: Se activeaza HTTPS cu Let's Encrypt (Certbot)
+      command: >
+        certbot --nginx -d itschool.live -d www.itschool.live
+        --non-interactive --agree-tos -m admin@itschool.live --redirect
+      when: dns_check.rc == 0
+      ignore_errors: yes
+
+    - name: Se verifica configurarea NGINX
+      command: nginx -t
+      register: nginx_test
+      changed_when: false
+
+    - name: Rezultatul configurarii
+      debug:
+        msg: "{{ nginx_test.stdout_lines }}"
+
+    - name: Verificare daca NGINX ruleaza
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
+
+  handlers:
+    - name: Restart nginx
+      service:
+        name: nginx
+        state: restarted

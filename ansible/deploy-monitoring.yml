@@ -1,0 +1,44 @@
+---
+- name: Deploy aplicatie de monitorizare in K3s
+  hosts: master-1
+  become: yes
+  vars:
+    k8s_manifest_path: /root/deployment.yaml
+  tasks:
+
+    - name: Copiaza fisierul de deployment pe master-1
+      copy:
+        src: ../k8s/deployment.yaml
+        dest: "{{ k8s_manifest_path }}"
+        mode: '0644'
+
+    - name: Aplica manifestul Kubernetes
+      command: kubectl apply -f {{ k8s_manifest_path }}
+      register: deploy_output
+
+    - name: Afiseaza rezultatul deploy-ului
+      debug:
+        var: deploy_output.stdout_lines
+
+    - name: Asteapta ca namespace-ul sa fie creat
+      command: kubectl get ns monitoring
+      register: ns_check
+      retries: 10
+      delay: 3
+      until: ns_check.rc == 0
+
+    - name: Verifica starea podurilor din namespace-ul monitoring
+      command: kubectl get pods -o wide -n monitoring
+      register: pod_status
+
+    - name: Afiseaza podurile si statusul lor
+      debug:
+        var: pod_status.stdout_lines
+
+    - name: Afiseaza serviciile disponibile
+      command: kubectl get svc -n monitoring
+      register: svc_status
+
+    - name: Arata serviciile create
+      debug:
+        var: svc_status.stdout_lines

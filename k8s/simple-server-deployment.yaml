@@ -1,0 +1,83 @@
+# ex facut la curs
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ss
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simple-server-deployment
+  namespace: ss
+  labels:
+    app: simple-server
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: simple-server
+  template:
+    metadata:
+      labels:
+        app: simple-server
+    spec:
+      containers:
+      - name: simple-server
+        image: andreimihai/simple-server:0.1.0
+        readinessProbe:
+          exec:
+            command:
+            - ls
+          initialDelaySeconds: 15
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "64Mi"
+            cpu: "200m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: simple-server
+  name: simple-server
+  namespace: ss
+spec:
+  ports:
+  - port: 8123
+    name: port-simple-server
+    protocol: TCP
+    targetPort: 8123
+  selector:
+    app: simple-server
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: simple-server-hpa
+  namespace: ss
+spec:
+  maxReplicas: 15
+  metrics:
+  - resource:
+      name: cpu
+      target:
+        averageUtilization: 60
+        type: Utilization
+    type: Resource
+  - resource:
+      name: memory
+      target:
+        averageUtilization: 75
+        type: Utilization
+    type: Resource
+  minReplicas: 4
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: simple-server-deployment 

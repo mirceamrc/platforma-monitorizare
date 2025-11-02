@@ -1,0 +1,104 @@
+---
+- name: Instaleaza Docker pe mastere si workere
+  hosts: master,worker
+  become: yes
+  tasks:
+    - name: Verifica daca Docker este instalat
+      command: which docker
+      register: verificare_docker
+      ignore_errors: yes
+
+    - name: Instaleaza Docker daca nu este instalat
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+      when: verificare_docker.rc != 0
+
+    - name: Porneste si activeaza serviciul Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+- name: Instaleaza primul master K3s (cluster-init)
+  hosts: "{{ groups['master'][0] }}"
+  become: yes
+  tasks:
+    - name: Instaleaza K3s pe primul master
+      shell: |
+        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --cluster-init --tls-san {{ hostvars['lb-1'].ansible_host }} --write-kubeconfig-mode 644" sh -
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: Copiaza tokenul de cluster pe controler local
+      fetch:
+        src: /var/lib/rancher/k3s/server/node-token
+        dest: ./node-token
+        flat: yes
+
+- name: Adauga masterii secundari
+  hosts: "{{ groups['master'][1:] }}"
+  become: yes
+  tasks:
+    - name: Copiaza tokenul K3s pe fiecare master secundar
+      copy:
+        src: ./node-token
+        dest: /tmp/node-token
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Instaleaza K3s pe master secundar
+      shell: |
+        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
+          --server https://{{ hostvars['lb-1'].ansible_host }}:6443 \
+          --token $(cat /tmp/node-token) \
+          --tls-san {{ hostvars['lb-1'].ansible_host }} \
+          --write-kubeconfig-mode 644" sh -
+      args:
+        creates: /usr/local/bin/k3s
+      register: k3s_secondary
+      retries: 3
+      delay: 10
+      until: k3s_secondary.rc == 0
+
+    - name: Asteapta ca serviciul K3s sa fie complet activ pe master secundar
+      shell: |
+        systemctl is-active k3s
+      register: k3s_status_check
+      retries: 5          
+      delay: 15            
+      until: k3s_status_check.stdout == "active"
+      ignore_errors: no
+
+    - name: Afiseaza statusul final al serviciului K3s
+      debug:
+        msg: "{{ inventory_hostname }} este activ în cluster (status: {{ k3s_status_check.stdout }})"
+
+- name: Adauga workerele in cluster
+  hosts: worker
+  become: yes
+  tasks:
+    - name: Copiaza tokenul K3s pe worker
+      copy:
+        src: ./node-token
+        dest: /tmp/node-token
+
+    - name: Instaleaza agentul K3s (worker)
+      shell: |
+        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="agent --server https://{{ hostvars['lb-1'].ansible_host }}:6443 --token $(cat /tmp/node-token)" sh -
+      args:
+        creates: /usr/local/bin/k3s-agent
+
+- name: Verifică starea clusterului K3s
+  hosts: "{{ groups['master'][0] }}"
+  become: yes
+  tasks:
+    - name: Afiseaza nodurile din cluster
+      shell: k3s kubectl get nodes -o wide
+      register: rezultat
+
+    - name: Afiseaza rezultatul in consola
+      debug:
+        msg: "{{ rezultat.stdout_lines }}"
