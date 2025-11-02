@@ -1,0 +1,81 @@
+pipeline {
+    agent any
+    
+    environment {
+        WORKDIR = "devops"
+        DOCKERHUB_CREDENTIALS = credentials("credentiale-dockerhub")
+    }
+
+    stages {
+        stage('Hello') {
+            steps {
+                echo 'Hello, World from Jenkins File!'
+            }
+        }
+        stage('Hello With Multiple Steps') {
+            steps {
+                echo 'Hello, World!'
+                sh 'id'
+                sh 'pwd'
+                script {
+                    dir("${WORKDIR}") {
+                        sh 'pwd'
+                    }
+                }
+            }
+        }
+        stage("Ruleaza teste in paralel") {
+            parallel {
+                stage("Ruleaza teste sintaxa") {
+                    steps {
+                        sh 'sleep 3'
+                    }
+                }
+                stage("Ruleaza teste unitare") {
+                    steps {
+                        sh 'sleep 3'
+                    }   
+                }
+                stage("Ruleaza teste de integrare") {
+                    steps {
+                        sh 'sleep 3'
+                    }  
+                }
+                stage("Scaneaza de vulnerabilitati") {
+                    steps {
+                        sh 'sleep 4'
+                    }   
+                }
+            }
+        }
+        stage("Afiseaza credentiale docker") {
+            steps {
+                sh 'printenv'
+            }
+        }
+        stage("Confirmare etapa urmatoare") {
+            steps {
+                script {
+                    // Vezi https://www.jenkins.io/doc/pipeline/steps/pipeline-input-step/
+                    confirmare = input(
+                        message: 'Vrei sa dai push la imagine pe Docker Hub?',
+                        ok: 'Continua',
+                        cancel: 'Renunta',
+                        parameters: [
+                            choice(name: 'CONFIRM', choices: ['Da', 'Nu'], description: 'Selectează o opțiune')
+                        ]
+                    )
+                    env.PUSH_TO_DOCKERHUB = confirmare
+                }
+            }
+        }
+        stage("Push to docker hub") {
+            when {
+                expression { return env.PUSH_TO_DOCKERHUB == 'Da'}
+            }
+            steps {
+                echo 'Push to docker hub...'
+            }
+        }
+    }
+}

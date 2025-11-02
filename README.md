@@ -1,10 +1,6 @@
-**Acest schelet de proiect si acest README.MD sunt orientative.** 
-**Aveti libertatea de a aduga alte fisiere si a modifica acest schelet cum doriti. Important este sa implementati proiectul conform cerintelor primite.**
-**Acest text si tot textul ajutator de mai jos trebuiesc sterse inainte de a preda proiectul.**
-
 **Pentru a clona acest proiect creati propriul vostru proiect EMPTY in gihub si rulati:**
 ```bash
-git clone git@github.com:amihai/platforma-monitorizare.git
+git clone git@github.com:mirceamrc/platforma-monitorizare.git
 cd platforma-monitorizar
 git remote -v
 git remote remove origin
