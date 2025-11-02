@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY scripts/backup.py /app/backup.py
+COPY ../../scripts/backup.py /app/backup.py
 
 RUN mkdir -p /data/backup
 
