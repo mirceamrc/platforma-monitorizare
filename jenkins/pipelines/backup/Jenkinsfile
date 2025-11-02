@@ -22,9 +22,9 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    dir("${WORKDIR}") {
-                        dockerImage = docker.build("${IMAGE_NAME}:${TAG}")
-                    }
+                    dir("${env.WORKSPACE}") {
+                        dockerImage = docker.build("${IMAGE_NAME}:${TAG}", "-f docker/backup/Dockerfile .")
+            }
                 }
             }
         }
