@@ -120,8 +120,42 @@ pipeline {
       }
     }
 
-    stage('Ansible: Update pachete') {
+    stage('Verificare Master în Inventory') {
       when { expression { return !params.DESTROY } }
+      steps {
+        script {
+          def inventoryFile = "${ANSIBLE_DIR}/inventory.ini"
+          echo "Verificăm dacă există cel puțin un master în ${inventoryFile}..."
+
+          if (!fileExists(inventoryFile)) {
+            echo "Fișierul inventory.ini nu există — sar etapele Ansible."
+            env.HAS_MASTER = 'false'
+            return
+          }
+
+          def inventory = readFile(inventoryFile)
+          def matcher = (inventory =~ /\[master\]([\s\S]*?)(\n\[|$)/)
+          def masterSection = matcher ? matcher[0][1].trim() : ""
+
+          if (!masterSection || !masterSection.contains("ansible_host")) {
+            echo "Niciun master detectat în inventory.ini — sar etapele Ansible."
+            env.HAS_MASTER = 'false'
+          } else {
+            echo "Master(i) detectați:\n${masterSection}"
+            env.HAS_MASTER = 'true'
+          }
+        }
+      }
+    }
+
+
+    stage('Ansible: Update pachete') {
+      when {
+        allOf {
+          expression { return !params.DESTROY }
+          expression { env.HAS_MASTER == 'true' }
+        }
+      }
       steps {
         dir("${ANSIBLE_DIR}") {
           sh '''
@@ -133,7 +167,12 @@ pipeline {
     }
 
     stage('Ansible: Configurare Load Balancer') {
-      when { expression { return !params.DESTROY } }
+      when {
+        allOf {
+          expression { return !params.DESTROY }
+          expression { env.HAS_MASTER == 'true' }
+        }
+      }
       steps {
         dir("${ANSIBLE_DIR}") {
           sh '''
@@ -145,7 +184,12 @@ pipeline {
     }
 
     stage('Ansible: Instalare K3s Cluster') {
-      when { expression { return !params.DESTROY } }
+      when {
+        allOf {
+          expression { return !params.DESTROY }
+          expression { env.HAS_MASTER == 'true' }
+        }
+      }
       steps {
         dir("${ANSIBLE_DIR}") {
           sh '''
