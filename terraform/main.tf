@@ -108,7 +108,7 @@ resource "openstack_networking_secgroup_rule_v2" "k3s_lb_tcp" {
 locals {
   roles = {
     master = {
-      count           = 1
+      count           = 3
       flavor          = "smi.1c-2g"
       image           = "docker-ubuntu-20.04"
       public_network  = true

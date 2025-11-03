@@ -108,17 +108,46 @@ pipeline {
       steps {
         dir("${ANSIBLE_DIR}") {
           sh '''
-            echo "Verificăm dacă inventarul Ansible a fost generat..."
+            echo "Verificam daca inventarul Ansible a fost generat..."
             if [ ! -f inventory.ini ]; then
-              echo "Fisierul inventory.ini nu există!"
+              echo "Fisierul inventory.ini nu exista!"
               exit 1
             fi
-            echo "Inventory găsit:"
+
+            echo "Inventory gasit:"
             cat inventory.ini
+            echo ""
+            echo "Verificam conectivitatea SSH catre toate serverele..."
+
+            RETRIES=10
+            DELAY=15
+            COUNT=1
+
+            while [ $COUNT -le $RETRIES ]; do
+              echo "Incercarea $COUNT din $RETRIES..."
+              
+              ansible -i inventory.ini all -m ping -o
+              RESULT=$?
+
+              if [ $RESULT -eq 0 ]; then
+                echo "Toate serverele raspund la ping!"
+                break
+              else
+                echo "Unele servere nu raspund. Asteptam $DELAY secunde si reincercam..."
+                sleep $DELAY
+              fi
+              COUNT=$((COUNT + 1))
+            done
+
+            if [ $RESULT -ne 0 ]; then
+              echo "Serverele nu au raspuns nici dupa $RETRIES incercari."
+              exit 1
+            fi
           '''
         }
       }
     }
+
 
     stage('Verificare Master în Inventory') {
       when { expression { return !params.DESTROY } }
