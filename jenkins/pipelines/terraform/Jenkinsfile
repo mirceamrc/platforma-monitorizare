@@ -8,6 +8,7 @@ pipeline {
 
   environment {
     TF_DIR = "${WORKSPACE}/terraform"
+    ANSIBLE_DIR = "${WORKSPACE}/ansible"
     TF_IN_AUTOMATION = "true"
     TF_INPUT = "false"
 
@@ -103,12 +104,67 @@ pipeline {
     }
   }
 
+  stage('Verificare Inventory Ansible') {
+      when { expression { return !params.DESTROY } }
+      steps {
+        dir("${ANSIBLE_DIR}") {
+          sh '''
+            echo "Verificăm dacă inventarul Ansible a fost generat..."
+            if [ ! -f inventory.ini ]; then
+              echo "Fisierul inventory.ini nu există!"
+              exit 1
+            fi
+            echo "Inventory găsit:"
+            cat inventory.ini
+          '''
+        }
+      }
+    }
+
+    stage('Ansible: Update pachete') {
+      when { expression { return !params.DESTROY } }
+      steps {
+        dir("${ANSIBLE_DIR}") {
+          sh '''
+            echo "Rulăm update.yml pe toate serverele..."
+            ansible-playbook update.yml
+          '''
+        }
+      }
+    }
+
+    stage('Ansible: Configurare Load Balancer') {
+      when { expression { return !params.DESTROY } }
+      steps {
+        dir("${ANSIBLE_DIR}") {
+          sh '''
+            echo "Configurăm NGINX Load Balancer..."
+            ansible-playbook config-lb.yml
+          '''
+        }
+      }
+    }
+
+    stage('Ansible: Instalare K3s Cluster') {
+      when { expression { return !params.DESTROY } }
+      steps {
+        dir("${ANSIBLE_DIR}") {
+          sh '''
+            echo "Instalăm clusterul K3s..."
+            ansible-playbook cluster-k3s.yml
+          '''
+        }
+      }
+    }
+
+  }
+
   post {
     success {
-      echo "Terraform ${params.DESTROY ? 'destroy' : 'apply'} a fost executat cu succes!"
+      echo "Pipeline complet Terraform + Ansible rulat cu succes!"
     }
     failure {
-      echo "Eroare în rularea Terraform (${params.DESTROY ? 'destroy' : 'apply'})."
+      echo "Eroare în rularea pipeline-ului Terraform/Ansible."
     }
     always {
       cleanWs()
