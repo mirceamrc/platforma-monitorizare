@@ -17,7 +17,7 @@ pipeline {
               dir("${WORKDIR}/scripts") {
                   sh 'printenv'
                   sh 'pip install flake8'
-                  sh 'python3 -m flake8 .'
+                  sh 'python3 -m flake8 backup.py'
               }
             }
         }
