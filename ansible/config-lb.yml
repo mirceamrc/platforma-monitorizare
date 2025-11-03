@@ -96,17 +96,19 @@
       command: >
         certbot --nginx -d {{ app_domain }} -d www.{{ app_domain }}
         --non-interactive --agree-tos -m {{ email_admin }} --redirect
-      when: dns_check.rc == 0 && has_workers
+      when: dns_check.rc == 0 and has_workers
       ignore_errors: yes
 
     - name: Se verifica configurarea NGINX
       command: nginx -t
       register: nginx_test
+      when: has_workers
       changed_when: false
 
     - name: Rezultatul configurarii
       debug:
         msg: "{{ nginx_test.stdout_lines }}"
+      when: has_workers
 
     - name: Verificare daca NGINX ruleaza
       service:
