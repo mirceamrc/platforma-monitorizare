@@ -35,7 +35,7 @@ pipeline {
             post {
                 success {
                     echo "Push-ul a fost efectuat cu succes!"
-                    echo "Vezi imaginea: https://hub.docker.com/repository/docker/${IMAGE_NAME}"
+                    echo "Vezi imaginea docker: https://hub.docker.com/repository/docker/${IMAGE_NAME}"
                 }
                 failure {
                     echo "Push-ul a eșuat! Verifică logurile."

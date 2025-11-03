@@ -55,7 +55,7 @@ pipeline {
                     try {
                         timeout(time: 2, unit: 'MINUTES') {
                             confirmare = input(
-                                message: 'Vrei să publici imaginea în Docker Hub?',
+                                message: 'Vrei să publici imaginea de backup în Docker Hub?',
                                 ok: 'Continuă',
                                 parameters: [
                                     choice(name: 'CONFIRM', choices: ['Da', 'Nu'], description: 'Confirmă trimiterea imaginii în Docker Hub')
