@@ -36,11 +36,6 @@ pipeline {
       steps {
         dir("${TF_DIR}") {
           sh '''
-            echo "Inițializăm Terraform..."
-            export OS_AUTH_TYPE=v3applicationcredential
-            export OS_IDENTITY_API_VERSION=3
-            export OS_INTERFACE=public
-
             terraform init -input=false
           '''
         }
@@ -54,11 +49,6 @@ pipeline {
       steps {
         dir("${TF_DIR}") {
           sh '''
-            echo "Verificăm sintaxa Terraform..."
-            export OS_AUTH_TYPE=v3applicationcredential
-            export OS_IDENTITY_API_VERSION=3
-            export OS_INTERFACE=public
-
             terraform fmt -check -recursive
             terraform validate
             terraform plan -out=tfplan
@@ -96,10 +86,6 @@ pipeline {
       steps {
         dir("${TF_DIR}") {
           sh '''
-            export OS_AUTH_TYPE=v3applicationcredential
-            export OS_IDENTITY_API_VERSION=3
-            export OS_INTERFACE=public
-
             if [ "${DESTROY}" = "true" ]; then
               echo "Rulăm terraform destroy..."
               terraform destroy -auto-approve
