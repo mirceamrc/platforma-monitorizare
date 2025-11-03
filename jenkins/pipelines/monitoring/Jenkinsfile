@@ -1,1 +1,53 @@
-# Pipeline Jenkins pentru CI/CD al scriptului Python.
+pipeline {
+
+    agent any
+
+    environment {
+        TAG = "${BUILD_NUMBER}"
+        DOCKERHUB_CREDENTIALS_ID = 'credentiale-dockerhub'  
+        DOCKERHUB_CREDENTIALS = credentials("${DOCKERHUB_CREDENTIALS_ID}")
+        IMAGE_NAME = "${DOCKERHUB_CREDENTIALS_USR}/docker-monitoring"
+        WORKDIR = "${env.WORKSPACE}"
+    }
+
+    stages {
+
+        stage('Build imagine Docker') {
+            steps {
+                script {
+                    dir("${WORKDIR}") {
+                        dockerImage = docker.build("${IMAGE_NAME}:${TAG}", "-f docker/monitoring/Dockerfile .")
+                    }
+                }
+            }
+        }
+
+        stage('Push in Docker Hub') {
+            steps {
+                script {
+                    docker.withRegistry('https://index.docker.io/v1/', "${DOCKERHUB_CREDENTIALS_ID}") {
+                        dockerImage.push()
+                        dockerImage.push('latest')
+                    }
+                }
+            }
+
+            post {
+                success {
+                    echo "Push-ul a fost efectuat cu succes!"
+                    echo "Vezi imaginea: https://hub.docker.com/repository/docker/${IMAGE_NAME}"
+                }
+                failure {
+                    echo "Push-ul a eșuat! Verifică logurile."
+                }
+            }
+        }
+
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
