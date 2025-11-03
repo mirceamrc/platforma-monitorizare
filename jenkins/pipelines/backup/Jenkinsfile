@@ -38,36 +38,65 @@ pipeline {
             }
         }
 
-        // stage('Build imagine Docker') {
-        //     steps {
-        //         script {
-        //             dir("${WORKDIR}") {
-        //                 dockerImage = docker.build("${IMAGE_NAME}:${TAG}", "-f docker/backup/Dockerfile .")
-        //     }
-        //         }
-        //     }
-        // }
+        stage('Build imagine Docker') {
+            steps {
+                script {
+                    dir("${WORKDIR}") {
+                        dockerImage = docker.build("${IMAGE_NAME}:${TAG}", "-f docker/backup/Dockerfile .")
+            }
+                }
+            }
+        }
 
-        // stage('Push in Docker Hub') {
-        //     steps {
-        //         script {
-        //             docker.withRegistry('https://index.docker.io/v1/', "${DOCKERHUB_CREDENTIALS_ID}") {
-        //                 dockerImage.push()
-        //                 dockerImage.push('latest')
-        //             }
-        //         }
-        //     }
+        stage('Confirmare Push in Docker Hub') {
+            steps {
+                script {
+                    def confirmare = 'Nu'
+                    try {
+                        timeout(time: 2, unit: 'MINUTES') {
+                            confirmare = input(
+                                message: 'Vrei să publici imaginea în Docker Hub?',
+                                ok: 'Continuă',
+                                parameters: [
+                                    choice(name: 'CONFIRM', choices: ['Da', 'Nu'], description: 'Confirmă trimiterea imaginii în Docker Hub')
+                                ]
+                            )
+                        }
+                    } catch (err) {
+                        echo "Timpul de răspuns a expirat. Se consideră alegerea: Nu"
+                    }
 
-        //     post {
-        //         success {
-        //             echo "Push-ul a fost efectuat cu succes pentru imaginea de backup!"
-        //             echo "Vezi imaginea: https://hub.docker.com/repository/docker/${IMAGE_NAME}"
-        //         }
-        //         failure {
-        //             echo "Push-ul a eșuat! Verifică logurile din build."
-        //         }
-        //     }
-        // }
+                    echo "Alegere finală: ${confirmare}"
+                    if (confirmare == 'Da') {
+                        env.PUSH_TO_DOCKERHUB = 'true'
+                    }
+                }
+            }
+        }
+
+        stage('Push in Docker Hub') {
+            when {
+                expression { return env.PUSH_TO_DOCKERHUB == 'true' }
+            }
+            steps {
+                script {
+                    docker.withRegistry('https://index.docker.io/v1/', "${DOCKERHUB_CREDENTIALS_ID}") {
+                        dockerImage.push()
+                        dockerImage.push('latest')
+                    }
+                }
+            }
+
+            post {
+                success {
+                    echo "Push-ul a fost efectuat cu succes pentru imaginea de backup!"
+                    echo "Vezi imaginea: https://hub.docker.com/repository/docker/${IMAGE_NAME}"
+                }
+                failure {
+                    echo "Push-ul a eșuat! Verifică logurile din build."
+                }
+            }
+        }
     }
 
     post {
