@@ -102,9 +102,8 @@ pipeline {
         }
       }
     }
-  }
 
-  stage('Verificare Inventory Ansible') {
+    stage('Verificare Inventory Ansible') {
       when { expression { return !params.DESTROY } }
       steps {
         dir("${ANSIBLE_DIR}") {
@@ -156,7 +155,6 @@ pipeline {
         }
       }
     }
-
   }
 
   post {
