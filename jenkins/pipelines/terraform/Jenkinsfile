@@ -1,0 +1,143 @@
+pipeline {
+
+    agent any
+
+    parameters {
+        booleanParam(name: 'DESTROY', defaultValue: false, description: 'Dacă este bifat, rulează terraform destroy în loc de apply')
+        booleanParam(name: 'AUTO_APPROVE', defaultValue: true, description: 'Aplică automat fără confirmare manuală')
+    }
+
+    environment {
+        TF_DIR = "${WORKSPACE}/terraform"
+        TF_IN_AUTOMATION = "true"
+        TF_INPUT = "false"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo "Preluăm codul din GitHub..."
+                checkout scm
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                dir("${TF_DIR}") {
+                    withCredentials([
+                        // --- AWS pentru backend S3 ---
+                        string(credentialsId: 'aws-access-key', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'aws-secret-key', variable: 'AWS_SECRET_ACCESS_KEY'),
+
+                        // --- OpenStack pentru provider ---
+                        string(credentialsId: 'os-auth-url', variable: 'OS_AUTH_URL'),
+                        string(credentialsId: 'os-region-name', variable: 'OS_REGION_NAME'),
+                        string(credentialsId: 'os-application-cred-id', variable: 'OS_APPLICATION_CREDENTIAL_ID'),
+                        string(credentialsId: 'os-application-cred-secret', variable: 'OS_APPLICATION_CREDENTIAL_SECRET')
+                    ]) {
+                        sh '''
+                            echo "Inițializăm Terraform..."
+                            export OS_AUTH_TYPE=v3applicationcredential
+                            export OS_IDENTITY_API_VERSION=3
+                            export OS_INTERFACE=public
+
+                            terraform init -input=false
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Terraform Validate & Plan') {
+            when {
+                expression { return !params.DESTROY } // doar dacă nu e destroy
+            }
+            steps {
+                dir("${TF_DIR}") {
+                    sh '''
+                        echo "Verificăm sintaxa Terraform..."
+                        terraform fmt -check -recursive
+                        terraform validate
+                        terraform plan -out=tfplan
+                        terraform show -no-color tfplan > plan.txt
+                    '''
+                    archiveArtifacts artifacts: 'plan.txt', fingerprint: true
+                }
+            }
+        }
+
+        stage('Confirmare manuală') {
+            when {
+                allOf {
+                    expression { return !params.AUTO_APPROVE }  // doar dacă nu e auto
+                    expression { return !params.DESTROY }       // și nu e destroy
+                }
+            }
+            steps {
+                script {
+                    def confirm = input(
+                        message: "Aplicăm modificările Terraform?",
+                        ok: "Aplică",
+                        parameters: [
+                            choice(name: 'CONFIRM', choices: ['Da', 'Nu'], description: 'Confirmă aplicarea')
+                        ]
+                    )
+                    if (confirm != 'Da') {
+                        error "Aplicarea a fost anulată de utilizator."
+                    }
+                }
+            }
+        }
+
+        stage('Terraform Apply / Destroy') {
+            steps {
+                dir("${TF_DIR}") {
+                    withCredentials([
+                        // --- AWS pentru backend S3 ---
+                        string(credentialsId: 'aws-access-key', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'aws-secret-key', variable: 'AWS_SECRET_ACCESS_KEY'),
+
+                        // --- OpenStack pentru provider ---
+                        string(credentialsId: 'os-auth-url', variable: 'OS_AUTH_URL'),
+                        string(credentialsId: 'os-region-name', variable: 'OS_REGION_NAME'),
+                        string(credentialsId: 'os-application-cred-id', variable: 'OS_APPLICATION_CREDENTIAL_ID'),
+                        string(credentialsId: 'os-application-cred-secret', variable: 'OS_APPLICATION_CREDENTIAL_SECRET')
+                    ]) {
+                        script {
+                            sh '''
+                                export OS_AUTH_TYPE=v3applicationcredential
+                                export OS_IDENTITY_API_VERSION=3
+                                export OS_INTERFACE=public
+                            '''
+
+                            if (params.DESTROY) {
+                                sh 'terraform destroy -auto-approve'
+                            } else {
+                                sh '''
+                                    if [ -f tfplan ]; then
+                                        terraform apply -auto-approve tfplan
+                                    else
+                                        terraform apply -auto-approve
+                                    fi
+                                '''
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Terraform ${params.DESTROY ? 'destroy' : 'apply'} a rulat cu succes!"
+        }
+        failure {
+            echo "Eroare în rularea Terraform (${params.DESTROY ? 'destroy' : 'apply'}). Verifică logurile."
+        }
+        always {
+            cleanWs()
+        }
+    }
+}

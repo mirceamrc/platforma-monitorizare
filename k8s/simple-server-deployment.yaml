@@ -49,10 +49,10 @@ metadata:
   namespace: ss
 spec:
   ports:
-  - port: 8123
+  - port: 30081
     name: port-simple-server
     protocol: TCP
-    targetPort: 8123
+    targetPort: 30081
   selector:
     app: simple-server
 ---

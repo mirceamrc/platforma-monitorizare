@@ -108,7 +108,7 @@ resource "openstack_networking_secgroup_rule_v2" "k3s_lb_tcp" {
 locals {
   roles = {
     master = {
-      count           = 3
+      count           = 0
       flavor          = "smi.1c-2g"
       image           = "docker-ubuntu-20.04"
       public_network  = true
@@ -116,7 +116,7 @@ locals {
       security_groups = [openstack_networking_secgroup_v2.k3s_cluster_sg.name]
     }
     worker = {
-      count           = 2
+      count           = 0
       flavor          = "smi.1c-2g"
       image           = "docker-ubuntu-20.04"
       public_network  = true
@@ -127,7 +127,7 @@ locals {
       count           = 1
       flavor          = "smi.2c-4g"
       image           = "minimal-ubuntu-20.04"
-      public_network  = true
+      public_network  = false
       private_network = true
       security_groups = [openstack_networking_secgroup_v2.k3s_lb_sg.name]
     }
