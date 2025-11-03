@@ -21,6 +21,11 @@
         state: absent
       ignore_errors: yes
 
+    - name: Oprește orice proces nginx care ocupă porturile
+      shell: sudo pkill -9 nginx
+      become: yes
+      ignore_errors: yes
+
     - name: Adauga blocul stream pentru K3s API in nginx.conf
       blockinfile:
         path: /etc/nginx/nginx.conf
