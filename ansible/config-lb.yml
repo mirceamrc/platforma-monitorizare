@@ -2,6 +2,10 @@
 - name: Configurare NGINX Load Balancer pentru K3s
   hosts: lb
   become: yes
+  vars:
+    app_domain: "itschool.live"
+    email_admin: "admin@itschool.live"
+
   tasks:
     - name: Se verifica NGINX si Certbot daca sunt instalate
       apt:
@@ -24,9 +28,13 @@
         block: |
           stream {
               upstream k3s_servers {
-          {% for host in groups['master'] %}
+              {% if groups['master'] | length > 0 %}
+              {% for host in groups['master'] %}
                   server {{ hostvars[host].ansible_host }}:6443;
-          {% endfor %}
+              {% endfor %}
+              {% else %}
+                  # niciun master definit
+              {% endif %}
               }
 
               server {
@@ -35,6 +43,16 @@
               }
           }
       notify: Restart nginx
+
+    - name: Verifica daca exista workeri
+      set_fact:
+        has_workers: "{{ (groups['worker'] is defined) and (groups['worker'] | length > 0) }}"
+      run_once: true
+
+    - name: Anunta lipsa workerilor
+      debug:
+        msg: "Nu exista workeri in inventory — sarim configurarea NGINX pentru aplicatie!"
+      when: not has_workers
 
     - name: Creeaza configul NGINX pentru app monitoring
       copy:
@@ -57,6 +75,8 @@
                   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
               }
           }
+      when: has_workers
+      notify: Restart NGINX
 
     - name: Se verifica daca DNS-ul itschool.live pointeaza spre load balancer
       shell: dig +short itschool.live | grep -w "{{ ansible_host }}"
@@ -74,9 +94,9 @@
 
     - name: Se activeaza HTTPS cu Let's Encrypt (Certbot)
       command: >
-        certbot --nginx -d itschool.live -d www.itschool.live
-        --non-interactive --agree-tos -m admin@itschool.live --redirect
-      when: dns_check.rc == 0
+        certbot --nginx -d {{ app_domain }} -d www.{{ app_domain }}
+        --non-interactive --agree-tos -m {{ email_admin }} --redirect
+      when: dns_check.rc == 0 && has_workers
       ignore_errors: yes
 
     - name: Se verifica configurarea NGINX
