@@ -28,7 +28,7 @@ pipeline {
                     script {
                         if (fileExists('test_backup.py')) {
                             sh 'pip install -r requirements.txt'
-                            sh 'python3 -m pytest -q --disable-warnings --maxfail=1 --junitxml=report.xml'
+                            sh 'python3 -m pytest . --junitxml=report.xml'
                             junit 'report.xml'
                         } else {
                             echo "Nu există fișier de test, se trece peste etapa de testare."
