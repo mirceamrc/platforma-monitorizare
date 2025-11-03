@@ -76,7 +76,7 @@
               }
           }
       when: has_workers
-      notify: Restart NGINX
+      notify: Restart nginx
 
     - name: Se verifica daca DNS-ul itschool.live pointeaza spre load balancer
       shell: dig +short itschool.live | grep -w "{{ ansible_host }}"
