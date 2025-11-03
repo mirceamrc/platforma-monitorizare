@@ -127,7 +127,7 @@ locals {
       count           = 1
       flavor          = "smi.2c-4g"
       image           = "minimal-ubuntu-20.04"
-      public_network  = false
+      public_network  = true
       private_network = true
       security_groups = [openstack_networking_secgroup_v2.k3s_lb_sg.name]
     }
