@@ -226,7 +226,7 @@ resource "null_resource" "generate_inventory" {
     command = <<EOT
 mkdir -p ${abspath(path.module)}/../ansible
 
-cat > ${abspath(path.module)}/../ansible/inventory.ini <<'EOF'
+cat > "${abspath(path.module)}/../ansible/inventory.ini" <<'EOF'
 [lb]
 %{for name, inst in openstack_compute_instance_v2.itschool_vms~}
 %{if can(regex("^lb", name))}${name} ansible_host=${inst.access_ip_v4} ansible_user=root
