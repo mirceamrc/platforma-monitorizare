@@ -18,9 +18,9 @@ pipeline {
     OS_REGION_NAME                   = credentials('os-region-name')
     OS_APPLICATION_CREDENTIAL_ID     = credentials('os-application-cred-id')
     OS_APPLICATION_CREDENTIAL_SECRET = credentials('os-application-cred-secret')
-    OS_AUTH_TYPE                     = v3applicationcredential
-    OS_IDENTITY_API_VERSION          = 3
-    OS_INTERFACE                     = public
+    OS_AUTH_TYPE                     = "v3applicationcredential"
+    OS_IDENTITY_API_VERSION          = "3"
+    OS_INTERFACE                     = "public"
   }
 
   stages {
