@@ -110,12 +110,6 @@
         msg: "{{ nginx_test.stdout_lines }}"
       when: has_workers
 
-    - name: Verificare daca NGINX ruleaza
-      service:
-        name: nginx
-        state: restarted
-        enabled: yes
-
   handlers:
     - name: Restart nginx
       service:
