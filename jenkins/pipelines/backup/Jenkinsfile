@@ -7,48 +7,67 @@ pipeline {
         DOCKERHUB_CREDENTIALS_ID = 'credentiale-dockerhub'
         DOCKERHUB_CREDENTIALS = credentials("${DOCKERHUB_CREDENTIALS_ID}")
         IMAGE_NAME = "${DOCKERHUB_CREDENTIALS_USR}/docker-backup"
-        WORKDIR = "${env.WORKSPACE}/docker/backup/"
+        WORKDIR = "${env.WORKSPACE}"
     }
 
     stages {
 
-        stage('Test Docker') {
+        stage('Lint') {
             steps {
-                sh 'id'
-                sh 'docker ps -a'
+              dir("${WORKDIR}/scripts") {
+                  sh 'printenv'
+                  sh 'pip install flake8'
+                  sh 'python3 -m flake8 .'
+              }
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Testare cod Python') {
             steps {
-                script {
-                    dir("${env.WORKSPACE}") {
-                        dockerImage = docker.build("${IMAGE_NAME}:${TAG}", "-f docker/backup/Dockerfile .")
-            }
-                }
-            }
-        }
-
-        stage('Push to Docker Hub') {
-            steps {
-                script {
-                    docker.withRegistry('https://index.docker.io/v1/', "${DOCKERHUB_CREDENTIALS_ID}") {
-                        dockerImage.push()
-                        dockerImage.push('latest')
+                dir("${WORKDIR}/scripts") {
+                    script {
+                        if (fileExists('test_backup.py')) {
+                            sh 'pip install -r requirements.txt'
+                            sh 'python3 -m pytest -q --disable-warnings --maxfail=1 --junitxml=report.xml'
+                            junit 'report.xml'
+                        } else {
+                            echo "Nu există fișier de test, se trece peste etapa de testare."
+                        }
                     }
                 }
             }
-
-            post {
-                success {
-                    echo "✅ Push-ul a fost efectuat cu succes pentru imaginea de backup!"
-                    echo "🔗 Vezi imaginea: https://hub.docker.com/repository/docker/${IMAGE_NAME}"
-                }
-                failure {
-                    echo "❌ Push-ul a eșuat! Verifică logurile din build."
-                }
-            }
         }
+
+        // stage('Build imagine Docker') {
+        //     steps {
+        //         script {
+        //             dir("${WORKDIR}") {
+        //                 dockerImage = docker.build("${IMAGE_NAME}:${TAG}", "-f docker/backup/Dockerfile .")
+        //     }
+        //         }
+        //     }
+        // }
+
+        // stage('Push in Docker Hub') {
+        //     steps {
+        //         script {
+        //             docker.withRegistry('https://index.docker.io/v1/', "${DOCKERHUB_CREDENTIALS_ID}") {
+        //                 dockerImage.push()
+        //                 dockerImage.push('latest')
+        //             }
+        //         }
+        //     }
+
+        //     post {
+        //         success {
+        //             echo "Push-ul a fost efectuat cu succes pentru imaginea de backup!"
+        //             echo "Vezi imaginea: https://hub.docker.com/repository/docker/${IMAGE_NAME}"
+        //         }
+        //         failure {
+        //             echo "Push-ul a eșuat! Verifică logurile din build."
+        //         }
+        //     }
+        // }
     }
 
     post {

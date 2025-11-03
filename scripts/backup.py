@@ -45,32 +45,34 @@ def file_hash(file_path):
         log_error(f"Eroare la calcularea hash-ului fisierului '{file_path}': {e}")
         return None
 
-print(f"Pornim monitorizarea fisierului '{source_file}' cu intervalul de {backup_interval} secunde.")
+if __name__ == "__main__":
 
-while True:
-    try:
-        if os.path.exists(source_file):
-            current_hash = file_hash(source_file)
+    print(f"Pornim monitorizarea fisierului '{source_file}' cu intervalul de {backup_interval} secunde.")
 
-            if current_hash is None:
-                print("Nu s-a putut calcula hashul fisierului. Se sare peste backup.")
-            elif last_hash != current_hash:
-                last_hash = current_hash
+    while True:
+        try:
+            if os.path.exists(source_file):
+                current_hash = file_hash(source_file)
 
-                # Creăm numele fișierului de backup cu data și ora curentă
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                backup_file = os.path.join(backup_dir, f"system-state_{timestamp}.log")
+                if current_hash is None:
+                    print("Nu s-a putut calcula hashul fisierului. Se sare peste backup.")
+                elif last_hash != current_hash:
+                    last_hash = current_hash
 
-                try:
-                    shutil.copy(source_file, backup_file)
-                    print(f"Backup realizat: {backup_file}")
-                except Exception as e:
-                    log_error(f"Eroare la copierea fisierului: {e}")
+                    # Creăm numele fișierului de backup cu data și ora curentă
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    backup_file = os.path.join(backup_dir, f"system-state_{timestamp}.log")
+
+                    try:
+                        shutil.copy(source_file, backup_file)
+                        print(f"Backup realizat: {backup_file}")
+                    except Exception as e:
+                        log_error(f"Eroare la copierea fisierului: {e}")
+                else:
+                    print("Fisierul nu s-a modificat. Nu se facem backup.")
             else:
-                print("Fisierul nu s-a modificat. Nu se facem backup.")
-        else:
-            print(f"Fisierul '{source_file}' nu exista.")
-    except Exception as e:
-        log_error(f"Eroare: {e}")
+                print(f"Fisierul '{source_file}' nu exista.")
+        except Exception as e:
+            log_error(f"Eroare: {e}")
 
-    time.sleep(backup_interval)
+        time.sleep(backup_interval)
