@@ -116,7 +116,7 @@ locals {
       security_groups = [openstack_networking_secgroup_v2.k3s_cluster_sg.name]
     }
     worker = {
-      count           = 1
+      count           = 2
       flavor          = "smi.1c-2g"
       image           = "docker-ubuntu-20.04"
       public_network  = true

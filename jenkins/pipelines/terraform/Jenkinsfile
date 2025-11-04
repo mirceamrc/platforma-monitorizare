@@ -228,6 +228,22 @@ pipeline {
         }
       }
     }
+
+    stage('Ansible: Deploy Monitoring in K3s') {
+      when {
+        allOf {
+          expression { return !params.DESTROY }
+          expression { env.HAS_MASTER == 'true' }
+        }
+      }
+      steps {
+        dir("${ANSIBLE_DIR}") {
+          sh '''
+            ansible-playbook deploy-monitoring.yml
+          '''
+        }
+      }
+    }
   }
 
   post {

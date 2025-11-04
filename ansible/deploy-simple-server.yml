@@ -4,11 +4,13 @@
   become: yes
   vars:
     k8s_manifest_path: /root/simple-server-deployment.yaml
+    namespace: frontend
+    scr_manifest_path: ../k8s/simple-server-deployment.yaml
   tasks:
 
     - name: Copiaza fisierul de deployment pe master-1
       copy:
-        src: ../k8s/simple-server-deployment.yaml
+        src: "{{ scr_manifest_path }}"
         dest: "{{ k8s_manifest_path }}"
         mode: '0644'
 
@@ -21,14 +23,14 @@
         var: deploy_output.stdout_lines
 
     - name: Asteapta ca namespace-ul sa fie creat
-      command: kubectl get ns ss
+      command: kubectl get ns {{ namespace }}
       register: ns_check
       retries: 10
       delay: 3
       until: ns_check.rc == 0
 
-    - name: Verifica starea podurilor din namespace-ul ss
-      command: kubectl get pods -o wide -n ss
+    - name: Verifica starea podurilor din namespace-ul {{ namespace }}
+      command: kubectl get pods -o wide -n {{ namespace }}
       register: pod_status
 
     - name: Afiseaza podurile si statusul lor
@@ -36,7 +38,7 @@
         var: pod_status.stdout_lines
 
     - name: Afiseaza serviciile disponibile
-      command: kubectl get svc -n ss
+      command: kubectl get svc -n {{ namespace }}
       register: svc_status
 
     - name: Arata serviciile create
