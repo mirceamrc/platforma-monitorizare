@@ -117,6 +117,13 @@ pipeline {
             echo "Inventory gasit:"
             cat inventory.ini
             echo ""
+
+            echo "Curatam cheile SSH vechi pentru hosturile din inventory..."
+            for host in $(grep -E 'ansible_host=' inventory.ini | awk -F'=' '{print $2}'); do
+              echo " - Stergem cheia veche pentru $host"
+              ssh-keygen -R "$host" >/dev/null 2>&1 || true
+            done
+
             echo "Verificam conectivitatea SSH catre toate serverele..."
 
             RETRIES=10
