@@ -110,7 +110,7 @@
         msg: "{{ nginx_test.stdout_lines }}"
       when: has_workers
 
-  handlers:
+  handlers:  
     - name: Restart nginx
       block:
         - name: Opreste complet serviciul NGINX
@@ -119,11 +119,11 @@
             state: stopped
           ignore_errors: yes
 
-        - name: Verificare porturi 80, 443 si 6443 sunt eliberate
+        - name: Verifica porturile 80, 443 si 6443 daca sunt eliberate
           shell: |
             for port in 80 443 6443; do
               echo "Verific portul $port..."
-              for pid in $(ss -ltnp | awk "/:$port / {print \$7}" | sed 's/pid=//;s/,.*//'); do
+              for pid in $(ss -ltnp | awk "/:$port / {print \\$7}" | sed 's/pid=//;s/,.*//'); do
                 if [ -n "$pid" ]; then
                   echo " - omor procesul $pid pe portul $port"
                   kill -9 $pid || true
