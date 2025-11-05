@@ -66,7 +66,7 @@
 
           server {
               listen 80;
-              server_name itschool.live www.itschool.live;
+              server_name {{ app_domain }} www.{{ app_domain }};
 
               location / {
                   proxy_pass http://monitoring_app;
@@ -78,8 +78,8 @@
       when: has_workers
       notify: Restart nginx
 
-    - name: Se verifica daca DNS-ul itschool.live pointeaza spre load balancer
-      shell: dig +short itschool.live | grep -w "{{ ansible_host }}"
+    - name: Se verifica daca DNS-ul {{ app_domain }} pointeaza spre load balancer
+      shell: dig +short {{ app_domain }} | grep -w "{{ ansible_host }}"
       register: dns_check
       ignore_errors: yes
 
@@ -87,9 +87,9 @@
       debug:
         msg: >
           {% if dns_check.rc == 0 %}
-          Domeniul itschool.live pointeaza corect catre {{ ansible_host }}.
+          Domeniul {{ app_domain }} pointeaza corect catre {{ ansible_host }}.
           {% else %}
-          DNS-ul itschool.live nu pointeaza catre {{ ansible_host }} — Certbot va fi sarit.
+          DNS-ul {{ app_domain }} nu pointeaza catre {{ ansible_host }} — Certbot va fi sarit.
           {% endif %}
 
     - name: Se activeaza HTTPS cu Let's Encrypt (Certbot)

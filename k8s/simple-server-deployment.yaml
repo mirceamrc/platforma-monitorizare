@@ -38,23 +38,26 @@ spec:
           limits:
             memory: "64Mi"
             cpu: "200m"
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  creationTimestamp: null
-  labels:
-    app: simple-server
   name: simple-server
   namespace: frontend
+  labels:
+    app: simple-server
 spec:
-  ports:
-  - port: 30081
-    name: port-simple-server
-    protocol: TCP
-    targetPort: 30081
+  type: NodePort
   selector:
     app: simple-server
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8123        
+    targetPort: 8123    
+    nodePort: 30081     
+
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
