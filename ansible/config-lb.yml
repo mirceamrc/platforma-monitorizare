@@ -21,11 +21,6 @@
         state: absent
       ignore_errors: yes
 
-    - name: Oprește orice proces nginx care ocupă porturile
-      shell: sudo pkill -9 nginx
-      become: yes
-      ignore_errors: yes
-
     - name: Adauga blocul stream pentru K3s API in nginx.conf
       blockinfile:
         path: /etc/nginx/nginx.conf
@@ -117,7 +112,30 @@
 
   handlers:
     - name: Restart nginx
-      service:
-        name: nginx
-        state: restarted
-        daemon_reload: yes
+      block:
+        - name: Opreste complet serviciul NGINX
+          service:
+            name: nginx
+            state: stopped
+          ignore_errors: yes
+
+        - name: Verificare porturi 80, 443 si 6443 sunt eliberate
+          shell: |
+            for port in 80 443 6443; do
+              echo "Verific portul $port..."
+              for pid in $(ss -ltnp | awk "/:$port / {print \$7}" | sed 's/pid=//;s/,.*//'); do
+                if [ -n "$pid" ]; then
+                  echo " - omor procesul $pid pe portul $port"
+                  kill -9 $pid || true
+                fi
+              done
+            done
+          ignore_errors: yes
+
+        - name: Porneste serviciul NGINX
+          service:
+            name: nginx
+            state: started
+            enabled: yes
+          register: nginx_restart
+          failed_when: nginx_restart.state != "started"
