@@ -16,9 +16,6 @@ terraform {
 
 provider "openstack" {}
 
-# =============================
-# 🧩  Rețea privată + Subnet
-# =============================
 resource "openstack_networking_network_v2" "itschool_network" {
   name = "itschool-network"
 }
@@ -32,17 +29,11 @@ resource "openstack_networking_subnet_v2" "itschool_subnet" {
   enable_dhcp = true
 }
 
-# =============================
-# 🔑  Cheie SSH pentru acces la VPS-uri
-# =============================
 resource "openstack_compute_keypair_v2" "itschool_key" {
   name       = "itschool-key"
   public_key = file("~/.ssh/id_ed25519.pub")
 }
 
-# =============================
-# 🔐  Security Group pentru clusterul K3s
-# =============================
 resource "openstack_networking_secgroup_v2" "k3s_cluster_sg" {
   name        = "k3s-cluster-sg"
   description = "Reguli pentru nodurile K3s (master + worker)"
@@ -78,9 +69,6 @@ resource "openstack_networking_secgroup_rule_v2" "k3s_cluster_udp" {
   security_group_id = openstack_networking_secgroup_v2.k3s_cluster_sg.id
 }
 
-# =============================
-# 🌐  Security Group pentru Load Balancer
-# =============================
 resource "openstack_networking_secgroup_v2" "k3s_lb_sg" {
   name        = "k3s-lb-sg"
   description = "Reguli pentru Load Balancer-ul K3s"
@@ -101,10 +89,6 @@ resource "openstack_networking_secgroup_rule_v2" "k3s_lb_tcp" {
   security_group_id = openstack_networking_secgroup_v2.k3s_lb_sg.id
 }
 
-
-# =============================
-# ⚙️  Definirea rolurilor
-# =============================
 locals {
   roles = {
     master = {
@@ -133,7 +117,6 @@ locals {
     }
   }
 
-  # 🔁 Generăm toate instanțele pentru fiecare rol
   instances = merge([
     for role, cfg in local.roles : {
       for i in range(cfg.count) :
@@ -142,9 +125,6 @@ locals {
   ]...)
 }
 
-# =============================
-# 💻  Instanțele propriu-zise
-# =============================
 resource "openstack_compute_instance_v2" "itschool_vms" {
   for_each    = local.instances
   name        = each.key
@@ -169,11 +149,6 @@ resource "openstack_compute_instance_v2" "itschool_vms" {
   security_groups = concat(["default"], each.value.security_groups)
 }
 
-# =============================
-# 🌍  DNS Designate - Zona și Recorduri
-# =============================
-
-# Creează zona principală DNS
 resource "openstack_dns_zone_v2" "itschool_zone" {
   name        = "itschool.live."
   email       = "admin@itschool.live"
@@ -181,7 +156,6 @@ resource "openstack_dns_zone_v2" "itschool_zone" {
   ttl         = 60
 }
 
-# Creează un record A pentru domeniul principal → IP-ul Load Balancer-ului
 resource "openstack_dns_recordset_v2" "itschool_live" {
   zone_id = openstack_dns_zone_v2.itschool_zone.id
   name    = "itschool.live."
@@ -197,7 +171,6 @@ resource "openstack_dns_recordset_v2" "itschool_live" {
   depends_on = [openstack_compute_instance_v2.itschool_vms]
 }
 
-# Creează un record CNAME pentru www → itschool.live
 resource "openstack_dns_recordset_v2" "itschool_www" {
   zone_id = openstack_dns_zone_v2.itschool_zone.id
   name    = "www.itschool.live."
@@ -208,9 +181,6 @@ resource "openstack_dns_recordset_v2" "itschool_www" {
   depends_on = [openstack_dns_recordset_v2.itschool_live]
 }
 
-# =============================
-# 📤  Output-uri utile
-# =============================
 output "instance_ips" {
   value = {
     for name, inst in openstack_compute_instance_v2.itschool_vms :
@@ -218,9 +188,6 @@ output "instance_ips" {
   }
 }
 
-# =============================
-# 🧾  Generare automată Ansible inventory.ini
-# =============================
 resource "null_resource" "generate_inventory" {
   provisioner "local-exec" {
     command = <<EOT
