@@ -226,3 +226,11 @@ EOT
 
   depends_on = [openstack_compute_instance_v2.itschool_vms]
 }
+
+resource "aws_s3_object" "inventory" {
+  bucket = "itschool-s3"
+  key    = "inventory.ini"
+  content = file("${abspath(path.module)}/../ansible/inventory.ini")
+}
+
+
