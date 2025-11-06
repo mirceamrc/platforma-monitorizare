@@ -4,6 +4,10 @@ terraform {
       source  = "terraform-provider-openstack/openstack"
       version = "~> 3.3"
     }
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
   }
 
   backend "s3" {
@@ -15,6 +19,10 @@ terraform {
 }
 
 provider "openstack" {}
+
+provider "aws" {
+  region = "eu-north-1"
+}
 
 resource "openstack_networking_network_v2" "itschool_network" {
   name = "itschool-network"
@@ -228,9 +236,14 @@ EOT
 }
 
 resource "aws_s3_object" "inventory" {
+  depends_on = [null_resource.generate_inventory]
+  
   bucket = "itschool-s3"
   key    = "inventory.ini"
-  content = file("${abspath(path.module)}/../ansible/inventory.ini")
+  content = trimspace(file("${path.module}/../ansible/inventory.ini"))
+  etag = filemd5("${path.module}/../ansible/inventory.ini")
+
+  force_destroy = true
 }
 
 
