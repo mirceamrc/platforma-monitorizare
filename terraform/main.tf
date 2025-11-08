@@ -237,11 +237,11 @@ EOT
 
 resource "aws_s3_object" "inventory" {
   depends_on = [null_resource.generate_inventory]
-  
-  bucket = "itschool-s3"
-  key    = "inventory.ini"
+
+  bucket  = "itschool-s3"
+  key     = "inventory.ini"
   content = trimspace(file("${path.module}/../ansible/inventory.ini"))
-  etag = filemd5("${path.module}/../ansible/inventory.ini")
+  etag    = filemd5("${path.module}/../ansible/inventory.ini")
 
   force_destroy = true
 }
