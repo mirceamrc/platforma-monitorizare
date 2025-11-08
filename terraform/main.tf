@@ -44,37 +44,38 @@ resource "openstack_compute_keypair_v2" "itschool_key" {
 
 resource "openstack_networking_secgroup_v2" "k3s_cluster_sg" {
   name        = "k3s-cluster-sg"
-  description = "Reguli pentru nodurile K3s (master + worker)"
+  description = "Reguli pentru nodurile K3s (master + worker) - acces doar intern"
 }
 
-# --- Reguli TCP pentru K3s ---
-resource "openstack_networking_secgroup_rule_v2" "k3s_cluster_tcp" {
-  for_each = toset([
-    "22", "6443", "2379:2380", "8443", "10250", "10257", "10259", "30000:32767"
-  ])
+# --- Comunicare internă între noduri ---
+resource "openstack_networking_secgroup_rule_v2" "k3s_cluster_internal" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 1
+  port_range_max    = 65535
+  remote_ip_prefix  = "192.168.10.0/24"
+  security_group_id = openstack_networking_secgroup_v2.k3s_cluster_sg.id
+  description       = "Comunicare completă internă între nodurile clusterului (privată)"
+}
 
+# --- Porturi critice pentru K3s (intern only) ---
+resource "openstack_networking_secgroup_rule_v2" "k3s_cluster_required" {
+  for_each = toset([
+    "2379:2380", # etcd
+    "6443",      # Kubernetes API server (accesat doar prin LB)
+    "10250",     # Kubelet
+    "10257",     # Controller Manager
+    "10259"      # Scheduler
+  ])
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = tonumber(split(":", each.key)[0])
   port_range_max    = length(split(":", each.key)) > 1 ? tonumber(split(":", each.key)[1]) : tonumber(each.key)
-  remote_ip_prefix  = "0.0.0.0/0"
+  remote_ip_prefix  = "192.168.10.0/24"
   security_group_id = openstack_networking_secgroup_v2.k3s_cluster_sg.id
-}
-
-# --- Reguli UDP pentru K3s ---
-resource "openstack_networking_secgroup_rule_v2" "k3s_cluster_udp" {
-  for_each = toset([
-    "8443", "8472", "51820", "51821"
-  ])
-
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "udp"
-  port_range_min    = tonumber(each.key)
-  port_range_max    = tonumber(each.key)
-  remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = openstack_networking_secgroup_v2.k3s_cluster_sg.id
+  description       = "Porturi interne K3s"
 }
 
 resource "openstack_networking_secgroup_v2" "k3s_lb_sg" {
@@ -82,12 +83,14 @@ resource "openstack_networking_secgroup_v2" "k3s_lb_sg" {
   description = "Reguli pentru Load Balancer-ul K3s"
 }
 
-# --- Reguli TCP pentru LB ---
-resource "openstack_networking_secgroup_rule_v2" "k3s_lb_tcp" {
+# --- Porturi publice necesare ---
+resource "openstack_networking_secgroup_rule_v2" "k3s_lb_public" {
   for_each = toset([
-    "22", "80", "443", "6443"
+    "22",  # SSH pentru administrare
+    "80",  # HTTP
+    "443", # HTTPS
+    "6443" # K3s API server (redirecționat către mastere)
   ])
-
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
@@ -95,6 +98,19 @@ resource "openstack_networking_secgroup_rule_v2" "k3s_lb_tcp" {
   port_range_max    = tonumber(each.key)
   remote_ip_prefix  = "0.0.0.0/0"
   security_group_id = openstack_networking_secgroup_v2.k3s_lb_sg.id
+  description       = "Acces public Load Balancer (HTTP/HTTPS/API)"
+}
+
+# --- Comunicare între LB și nodurile interne ---
+resource "openstack_networking_secgroup_rule_v2" "k3s_lb_internal" {
+  direction         = "egress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 1
+  port_range_max    = 65535
+  remote_ip_prefix  = "192.168.10.0/24"
+  security_group_id = openstack_networking_secgroup_v2.k3s_lb_sg.id
+  description       = "Permite traficul de la LB către nodurile interne"
 }
 
 locals {
@@ -204,19 +220,19 @@ mkdir -p ${abspath(path.module)}/../ansible
 cat > "${abspath(path.module)}/../ansible/inventory.ini" <<'EOF'
 [lb]
 %{for name, inst in openstack_compute_instance_v2.itschool_vms~}
-%{if can(regex("^lb", name))}${name} ansible_host=${inst.access_ip_v4} ansible_user=root private_ip=${inst.network[0].fixed_ip_v4}
+%{if can(regex("^lb", name))}${name} ansible_host=${inst.access_ip_v4} ansible_user=root private_ip=${inst.network[1].fixed_ip_v4}
 %{endif~}
 %{endfor~}
 
 [master]
 %{for name, inst in openstack_compute_instance_v2.itschool_vms~}
-%{if can(regex("^master", name))}${name} ansible_host=${inst.access_ip_v4} ansible_user=root private_ip=${inst.network[0].fixed_ip_v4}
+%{if can(regex("^master", name))}${name} ansible_host=${inst.access_ip_v4} ansible_user=root private_ip=${inst.network[1].fixed_ip_v4}
 %{endif~}
 %{endfor~}
 
 [worker]
 %{for name, inst in openstack_compute_instance_v2.itschool_vms~}
-%{if can(regex("^worker", name))}${name} ansible_host=${inst.access_ip_v4} ansible_user=root private_ip=${inst.network[0].fixed_ip_v4}
+%{if can(regex("^worker", name))}${name} ansible_host=${inst.access_ip_v4} ansible_user=root private_ip=${inst.network[1].fixed_ip_v4}
 %{endif~}
 %{endfor~}
 
