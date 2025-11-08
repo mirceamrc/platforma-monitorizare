@@ -78,7 +78,7 @@
         content: |
           upstream frontend_app {
           {% for host in groups['worker'] %}
-              server {{ hostvars[host].ansible_host }}:30081;
+              server {{ hostvars[host].private_ip }}:30081;
           {% endfor %}
           }
 

@@ -50,7 +50,7 @@ resource "openstack_networking_secgroup_v2" "k3s_cluster_sg" {
 # --- Reguli TCP pentru K3s ---
 resource "openstack_networking_secgroup_rule_v2" "k3s_cluster_tcp" {
   for_each = toset([
-    "22", "6443", "2379:2380", "10250", "10257", "10259", "30000:32767"
+    "22", "6443", "2379:2380", "8443", "10250", "10257", "10259", "30000:32767"
   ])
 
   direction         = "ingress"
@@ -65,7 +65,7 @@ resource "openstack_networking_secgroup_rule_v2" "k3s_cluster_tcp" {
 # --- Reguli UDP pentru K3s ---
 resource "openstack_networking_secgroup_rule_v2" "k3s_cluster_udp" {
   for_each = toset([
-    "8472", "51820", "51821"
+    "8443", "8472", "51820", "51821"
   ])
 
   direction         = "ingress"
@@ -204,19 +204,19 @@ mkdir -p ${abspath(path.module)}/../ansible
 cat > "${abspath(path.module)}/../ansible/inventory.ini" <<'EOF'
 [lb]
 %{for name, inst in openstack_compute_instance_v2.itschool_vms~}
-%{if can(regex("^lb", name))}${name} ansible_host=${inst.access_ip_v4} ansible_user=root
+%{if can(regex("^lb", name))}${name} ansible_host=${inst.access_ip_v4} ansible_user=root private_ip=${inst.network[0].fixed_ip_v4}
 %{endif~}
 %{endfor~}
 
 [master]
 %{for name, inst in openstack_compute_instance_v2.itschool_vms~}
-%{if can(regex("^master", name))}${name} ansible_host=${inst.access_ip_v4} ansible_user=root
+%{if can(regex("^master", name))}${name} ansible_host=${inst.access_ip_v4} ansible_user=root private_ip=${inst.network[0].fixed_ip_v4}
 %{endif~}
 %{endfor~}
 
 [worker]
 %{for name, inst in openstack_compute_instance_v2.itschool_vms~}
-%{if can(regex("^worker", name))}${name} ansible_host=${inst.access_ip_v4} ansible_user=root
+%{if can(regex("^worker", name))}${name} ansible_host=${inst.access_ip_v4} ansible_user=root private_ip=${inst.network[0].fixed_ip_v4}
 %{endif~}
 %{endfor~}
 

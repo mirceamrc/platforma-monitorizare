@@ -30,7 +30,7 @@
               upstream k3s_servers {
               {% if groups['master'] | length > 0 %}
               {% for host in groups['master'] %}
-                  server {{ hostvars[host].ansible_host }}:6443;
+                  server {{ hostvars[host].private_ip }}:6443;
               {% endfor %}
               {% else %}
                   # niciun master definit
@@ -60,7 +60,7 @@
         content: |
           upstream monitoring_app {
           {% for host in groups['worker'] %}
-              server {{ hostvars[host].ansible_host }}:30080;
+              server {{ hostvars[host].private_ip }}:30080;
           {% endfor %}
           }
 
